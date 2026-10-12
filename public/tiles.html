@@ -1,0 +1,92 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>SupRemix tileset</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 24px; background: #03060a; color: #d8f0e2;
+    font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  h1 { font-size: 13px; letter-spacing: .28em; margin: 0 0 4px; }
+  p.note { color: #6f8a7c; margin: 0 0 20px; max-width: 60ch; }
+  label { color: #6f8a7c; margin-right: 16px; }
+  input[type=range] { vertical-align: middle; }
+  .grid {
+    display: grid; gap: 14px; margin-top: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(var(--cell, 116px), 1fr));
+  }
+  .cell { text-align: center; }
+  .cell canvas {
+    display: block; margin: 0 auto 6px; image-rendering: pixelated;
+    background: repeating-conic-gradient(#0d1512 0 25%, #0a110f 0 50%) 0 0/16px 16px;
+    border: 1px solid #16241e; border-radius: 4px;
+  }
+  .cell b { font-weight: 500; color: #9fc2ae; display: block; word-break: break-all; }
+  .cell i { color: #4d6659; font-style: normal; }
+  .bed { background: #00381f !important; }
+</style>
+<h1>SUPREMIX TILESET</h1>
+<p class="note">
+  Every sprite the game builds, drawn at the size you choose. These are the same
+  canvases the board blits, so what is here is exactly what is played. The
+  checkerboard is transparency; toggle the board bed to see a tile against the
+  green it usually sits on.
+</p>
+<div>
+  <label>size <input id="size" type="range" min="24" max="160" value="96"></label>
+  <label><input id="anim" type="checkbox" checked> animate</label>
+  <label><input id="bed" type="checkbox"> board bed</label>
+  <span id="count"></span>
+</div>
+<div class="grid" id="grid"></div>
+<script type="module">
+  import { buildSprites } from './js/sprites.js';
+
+  const grid = document.getElementById('grid');
+  const sizeEl = document.getElementById('size');
+  const animEl = document.getElementById('anim');
+  const bedEl = document.getElementById('bed');
+  const countEl = document.getElementById('count');
+  let sprites = null;
+  let cells = [];
+
+  function build() {
+    const S = Number(sizeEl.value);
+    sprites = buildSprites(S);
+    document.documentElement.style.setProperty('--cell', `${S + 20}px`);
+    grid.innerHTML = '';
+    cells = sprites.keys().sort((a, b) => String(a.key).localeCompare(String(b.key)))
+      .map(({ key, frames }) => {
+        const wrap = document.createElement('div');
+        wrap.className = 'cell';
+        const c = document.createElement('canvas');
+        c.width = S; c.height = S;
+        c.style.width = `${S}px`; c.style.height = `${S}px`;
+        c.classList.toggle('bed', bedEl.checked);
+        const name = document.createElement('b');
+        name.textContent = String(key);
+        const fr = document.createElement('i');
+        fr.textContent = frames > 1 ? `${frames} frames` : 'static';
+        wrap.append(c, name, fr);
+        grid.append(wrap);
+        return { key, frames, ctx: c.getContext('2d'), S };
+      });
+    countEl.textContent = `${cells.length} sprites`;
+  }
+
+  function paint(now) {
+    const f = animEl.checked ? Math.floor(now / 110) : 0;
+    for (const c of cells) {
+      const img = sprites.get(c.key, f);
+      c.ctx.clearRect(0, 0, c.S, c.S);
+      if (img) c.ctx.drawImage(img, 0, 0, c.S, c.S);
+    }
+    requestAnimationFrame(paint);
+  }
+
+  sizeEl.oninput = build;
+  bedEl.onchange = build;
+  build();
+  requestAnimationFrame(paint);
+</script>

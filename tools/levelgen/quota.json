@@ -1,0 +1,22 @@
+{
+  "Power On": 9,
+  "Shunting Yard": 9,
+  "Bus Lines": 24,
+  "The Toolkit": 46,
+  "SIMM Bank": 28,
+  "Cache Array": 21,
+  "ISA Bus": 21,
+  "CPU Socket": 36,
+  "Drive Cage": 33,
+  "The PSU": 34,
+  "VGA Card": 33,
+  "CMOS Battery": 21,
+  "IDE Channel": 18,
+  "Sound Card": 48,
+  "Hard Drive": 40,
+  "Chipset": 38,
+  "Backplane": 46,
+  "Riser Card": 65,
+  "Cooling Fans": 40,
+  "Cold Boot Sequence": 45
+}
