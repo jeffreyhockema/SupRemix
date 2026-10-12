@@ -4,11 +4,11 @@ This builds the **remix pack**: `levels/remix.js` and `levels/remix-solutions.mj
 Both are generated — **do not edit them by hand**, the next build overwrites
 them.
 
-Run it with `npm run levels`. The remix pack is not what the game serves —
-`levels/pack.js` is the original Supaplex set — but it is kept green, and it is
+Run it with `sh tools/levelgen/rebuild.sh`. The remix pack is what the game plays
+when the original Supaplex set (`levels/pack.js`) is not there, and it is kept green either way, and it is
 held to rules the originals are excused from: every level past the tutorials
 gated, and a recorded solution that replays from spawn to exit. Check it with
-`SUPREMIX_PACK=remix npm run check`.
+`SUPREMIX_PACK=remix node tools/check.mjs`.
 
 ## Why the pack is generated
 
@@ -58,11 +58,11 @@ the walk back to the next gate is gone.
 A hand-written quota is a guess, and several of them asked for more infotrons
 than the board could ever produce — one wanted 38 from a board holding 27.
 
-So the build runs twice. `npm run quota` plays each generated solution and
+So the build runs twice. `node tools/fit-quota.mjs` plays each generated solution and
 records two ceilings: what a naive walker can reach without shoving anything,
 and what the solution yields once every gate is open. The quota is fitted into
 the gap between them, which makes it both provably reachable and provably out of
-reach of walking about. `npm run levels` does the whole loop.
+reach of walking about. `sh tools/levelgen/rebuild.sh` does the whole loop.
 
 `quota.json` is that measurement, read back by `gen.py`. If a level yields less
 than about a third of the infotrons on its board, the build fails rather than
@@ -72,16 +72,15 @@ board out to look at while the gate is still shut.
 
 ## Debugging a level that will not solve
 
-`npm run inspect <level> --trace` replays the solution one move at a time and
+`node tools/dbg.mjs <level> --trace` replays the solution one move at a time and
 prints how many drive bays are still reachable after each. The move where that
 drops to nought is the one that stranded the router, and that is nearly always
-the whole story. `npm run peek <level>` prints the board as authored.
+the whole story. `node tools/peek.mjs <level>` prints the board as authored.
 
 ## Where it stands
 
-All twenty parse, validate, solve and gate, and `SUPREMIX_PACK=remix npm run
-check` is green. Against the original 111
-(`SUPREMIX_PACK=remix npm run compare`) the pack sits close on open space
+All twenty parse, validate, solve and gate, and `SUPREMIX_PACK=remix node tools/check.mjs` is green. Against the original 111
+(`SUPREMIX_PACK=remix node tools/compare-original.mjs`) the pack sits close on open space
 (13.3% against 12.7%), infotron density and every shape measure except capacitor
 clustering. It is still under on chips and capacitors — 7% and 1.5% against 12%
 and 8% — because the passes that guarantee a route stays open clear a lot of

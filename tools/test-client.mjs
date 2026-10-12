@@ -399,6 +399,9 @@ test('menus are walked by where the buttons are, so a grid works as a grid', () 
   if (go(0, 0) !== -1) note('nothing above the top row');
 });
 
+const { createRequire: makeRequire } = await import('node:module');
+const createRequireFor = (p) => { const req = makeRequire(import.meta.url); delete req.cache[req.resolve(p)]; return req(p); };
+
 // Asset packs (js/asset-pack.js): the graphics, sounds and music ship only as
 // scrambled packs, and each pack reads back to exactly what went in.
 {
@@ -465,51 +468,59 @@ test('menus are walked by where the buttons are, so a grid works as a grid', () 
   });
 
   const { GROUPS } = await import('./pack-assets.mjs');
-  test('the packs are up to date with the raw files under assets/', () => {
+  test('the packs are up to date with what they are built from', () => {
     for (const [group, g] of Object.entries(GROUPS)) {
-      if (!fs.existsSync(g.from)) continue;          // a clone without the raw files
-      const names = fs.readdirSync(g.from).filter(g.take).sort();
-      if (!names.length) continue;
-      const pack = P.parsePack(fs.readFileSync('public/' + P.PACKS[group]));
-      const inPack = [...pack.entries.keys()].sort();
-      if (inPack.join() !== names.join()) { note(group + ': pack and assets/ list different files -- npm run pack'); continue; }
-      for (const n of names) {
-        if (!Buffer.from(P.readEntry(pack, n)).equals(fs.readFileSync(g.from + '/' + n))) note(group + ': ' + n + ' changed since packing -- npm run pack');
+      const files = g.files();
+      if (!files) continue;                          // a clone without that group's sources
+      const file = 'public/' + P.PACKS[group];
+      if (!fs.existsSync(file)) { note(group + ': ' + file + ' not built -- node tools/pack-assets.mjs'); continue; }
+      const pack = P.parsePack(fs.readFileSync(file));
+      if ([...pack.entries.keys()].sort().join() !== files.map((f) => f.name).sort().join()) {
+        note(group + ': pack and sources list different files -- node tools/pack-assets.mjs ' + group);
+        continue;
+      }
+      for (const f of files) {
+        if (!Buffer.from(P.readEntry(pack, f.name)).equals(Buffer.from(f.bytes))) note(group + ': ' + f.name + ' changed since packing -- node tools/pack-assets.mjs ' + group);
       }
     }
   });
+
+  test('a fresh clone has levels to play: the remix pack is committed and complete', () => {
+    const LEVELS = createRequireFor('../levels/remix.js').LEVELS;
+    const pack = P.parsePack(fs.readFileSync('public/' + P.PACKS.remix));
+    const back = JSON.parse(new TextDecoder().decode(P.readEntry(pack, 'levels.json'))).levels;
+    if (back.length !== LEVELS.length) note('remix.pak holds ' + back.length + ' levels, not ' + LEVELS.length);
+  });
 }
 
-test('the title screen shows the version package.json gives', () => {
-  const { version } = JSON.parse(readFileSync('package.json', 'utf8'));
-  const short = version.split('.').slice(0, 2).join('.');
+test('the title screen and the README agree on the version', () => {
   const html = readFileSync('public/index.html', 'utf8');
   const shown = /class="credit" data-version="([^"]+)"/.exec(html)?.[1];
-  if (shown !== short) note('index.html says v' + shown + ', package.json says ' + version);
+  const readme = /\*\*Version ([0-9.]+)\*\*/.exec(readFileSync('README.md', 'utf8'))?.[1];
+  if (!shown || shown !== readme) note('index.html says v' + shown + ', the README says ' + readme);
 });
 
-// The demo build (tools/build-demo.mjs) is where the original game's material
-// goes out, so check what it actually writes: the levels only in a pack that
-// reads back whole, and nothing of them anywhere in the clear.
+// The copy for a webserver (tools/build-site.mjs) is where the original game's
+// material goes out, so check what it actually writes: the levels only in a
+// pack that reads back whole, nothing of them in the clear, and nothing that
+// only development uses.
 {
   const fs = await import('node:fs');
   const os = await import('node:os');
   const path = await import('node:path');
   const { execFileSync } = await import('node:child_process');
-  const name = 'the demo build carries the levels only in a scrambled pack';
-  if (!fs.existsSync('levels/pack.js')) {
+  const name = 'the site copy carries the original levels only in a scrambled pack';
+  if (!fs.existsSync('levels/pack.js') || !fs.existsSync('public/' + packs.PACKS.levels)) {
     skip(name, 'no original levels in this copy');
   } else {
-    const out = fs.mkdtempSync(path.join(os.tmpdir(), 'supremix-demo-'));
+    const out = fs.mkdtempSync(path.join(os.tmpdir(), 'supremix-site-'));
     try {
-      execFileSync(process.execPath, ['tools/build-demo.mjs', '--out', out], { stdio: 'pipe' });
-      const { createRequire } = await import('node:module');
-      const LEVELS = createRequire(import.meta.url)('../levels/pack.js').LEVELS;
+      execFileSync(process.execPath, ['tools/build-site.mjs', '--out', out], { stdio: 'pipe' });
+      const LEVELS = createRequireFor('../levels/pack.js').LEVELS;
       test(name, () => {
         const pack = packs.parsePack(fs.readFileSync(path.join(out, packs.PACKS.levels)));
         const back = JSON.parse(new TextDecoder().decode(packs.readEntry(pack, 'levels.json'))).levels;
         if (back.length !== LEVELS.length) note('the pack holds ' + back.length + ' levels, not ' + LEVELS.length);
-        if (fs.existsSync(path.join(out, 'levels.json'))) note('levels.json written in the clear');
         // the longest level names, and a board row, are what would give it away
         const tells = [...LEVELS.map((l) => l.name).filter((n) => n.length >= 8).slice(0, 12), LEVELS[0].rows[3]];
         const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
@@ -518,8 +529,8 @@ test('the title screen shows the version package.json gives', () => {
           const bytes = fs.readFileSync(f);
           for (const t of tells) if (bytes.includes(t)) note(path.relative(out, f) + ' shows "' + t.slice(0, 20) + '" in the clear');
         }
-        const html = fs.readFileSync(path.join(out, 'index.html'), 'utf8');
-        if (!html.includes('<meta name="supremix-host" content="static">')) note('index.html not marked static');
+        for (const dev of ['package.json', 'tiles.html']) if (fs.existsSync(path.join(out, dev))) note(dev + ' copied');
+        if (!fs.existsSync(path.join(out, '.nojekyll'))) note('no .nojekyll');
       });
     } finally {
       fs.rmSync(out, { recursive: true, force: true });

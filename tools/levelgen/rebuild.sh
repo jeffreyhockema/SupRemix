@@ -12,3 +12,4 @@ PYTHONPATH="$DIR" python "$DIR/run.py" "$DIR" | tail -2
 node tools/validate-levels.mjs | tail -1
 node tools/verify-solutions.mjs | tail -1
 node tools/design-audit.mjs | tail -1
+node tools/pack-assets.mjs remix | tail -1

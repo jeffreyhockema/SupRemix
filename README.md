@@ -1,9 +1,10 @@
 # SupRemix
 
-**Version 0.51** · Play the demo: <https://jeffhockema.com/supremix/>
+**Version 0.51**
 
 A web remake of **Supaplex** (1991) crossed with the puzzle games either side of
-it, served by Node.js and set inside a 1990s PC.
+it, set inside a 1990s PC. It is a static site: put `public/` on any webserver
+and it plays.
 
 > This repository is SupRemix's own code and levels. The original game's levels,
 > graphics, sounds and music are not in it -- they are not ours to publish --
@@ -17,8 +18,9 @@ the infotron quota and reach the drive bay — without letting a capacitor land 
 your head. The zonks are electrolytic cans, the disks are 3.5" floppies, the
 monsters are case fans and arcing shorts, and the walls are beige steel.
 
-- **Zero dependencies.** No npm install. The server is Node's own `http` and
-  the client is plain ES modules.
+- **Zero dependencies, no build step.** Plain HTML, CSS and ES modules that need
+  nothing from a webserver but the files. The tools that build its assets and
+  check its levels are plain Node scripts.
 - **The original's own graphics and sound, remastered.** Every tile and every
   animation frame of the DOS game is redrawn in HD from its own pixels, and
   the seven sound effects are its own Sound Blaster samples, pulled out of the
@@ -27,11 +29,11 @@ monsters are case fans and arcing shorts, and the walls are beige steel.
   which also covers the hybrid elements the original never had.
 - **All 111 original levels**, imported tile for tile from the original
   `LEVELS.DAT` and played as they shipped. The import is checked against the
-  same file on every run: `npm run compare` decodes it and measures both sides
+  same file on every run: `node tools/compare-original.mjs` decodes it and measures both sides
   with the same code, and every figure comes back `exact`.
 - **Twenty levels of our own** as a second pack, generated from a dig-field with
   gates stamped into it, each a recognisable piece of a 1990s PC. Every one is
-  gated -- a naive collector is turned loose by `npm run audit` and the build
+  gated -- a naive collector is turned loose by `node tools/design-audit.mjs` and the build
   fails if walking to the nearest infotron is enough -- and every one ships a
   recorded solution that replays from spawn to exit.
 - **Five puzzle lineages in one board**: Supaplex digging and gravity, Chip's
@@ -43,16 +45,22 @@ monsters are case fans and arcing shorts, and the walls are beige steel.
 
 ## Run it
 
+Serve `public/` with any webserver and open it in a browser, for example:
+
 ```bash
-npm start                 # http://localhost:3000
-npm start -- --port 8080  # or pick a port
+python -m http.server 8000 --directory public    # http://localhost:8000
 ```
 
-Then open the address it prints. `PORT` and `HOST` environment variables work too.
+Opening `index.html` straight from disk does not work: browsers will not load
+ES modules or fetch files from a `file://` page. To put it online, copy
+`public/` to any static host -- `node tools/build-site.mjs --out <folder>` makes
+a clean copy without the development files (and with `.nojekyll`, for GitHub
+Pages). Every URL in the game is relative, so it works from a sub-folder.
 
-A fresh clone serves the twenty remix levels, drawn and voiced by SupRemix
+A fresh clone plays the twenty remix levels, drawn and voiced by SupRemix
 itself. The original levels, the remastered graphics and sound and the music
-appear once you have built them from your own copy of the game.
+appear once you have built them from your own copy of the game. Best runs and
+progress are kept in the browser.
 
 ## The original game files
 
@@ -61,40 +69,17 @@ rebuilt from a copy of the DOS game you supply, and git-ignored:
 
 | You get | From the game's | How |
 |---|---|---|
-| the 111 original levels | `LEVELS.DAT` | copy it to `levels/LEVELS.DAT`, then `npm run import` (writes `levels/pack.js`) |
-| the remastered graphics | `FIXED.DAT`, `MOVING.DAT`, `PALETTES.DAT` | `npm run sprites -- <Supaplex folder>`, then `npm run remaster`, `npm run remaster:moving`, `npm run remaster:game` (needs Chrome or Edge) |
-| the remastered sound effects | `BLASTER.SND` | `npm run sounds -- <Supaplex folder>`, then `npm run sounds:remaster` |
-| the music | `ROLAND.SND` | rendered outside this repository (see [Music](#music)); put the MP3s in `assets/music/` and run `npm run pack` |
+| the 111 original levels | `LEVELS.DAT` | copy it to `levels/LEVELS.DAT`, then `node tools/import-original.mjs` (writes `levels/pack.js` and `public/packs/levels.pak`) |
+| the remastered graphics | `FIXED.DAT`, `MOVING.DAT`, `PALETTES.DAT` | `node tools/extract-sprites.mjs <Supaplex folder>`, then `node tools/remaster/render.mjs`, `node tools/remaster/render-moving.mjs`, `node tools/remaster/game-atlas.mjs` (needs Chrome or Edge) |
+| the remastered sound effects | `BLASTER.SND` | `node tools/extract-sounds.mjs <Supaplex folder>`, then `node tools/remaster-sounds.mjs` |
+| the music | `ROLAND.SND` | rendered outside this repository (see [Music](#music)); put the MP3s in `assets/music/` and run `node tools/pack-assets.mjs` |
 
-The graphics, sounds and music end up in `public/packs/` as scrambled asset
-packs (see [Asset packs](#asset-packs)). The server picks up `levels/pack.js`
-when it is there and the remix levels when it is not, and the client falls back
-to its procedural sprites, synthesised sounds and silence for any pack that is
-missing, so every step is optional.
-
-## Publishing the demo
-
-The online demo is a static copy of the game for GitHub Pages:
-
-```bash
-npm run build:demo                                   # -> dist/
-npm run build:demo -- --out "<your Pages repo>/supremix"
-```
-
-It copies `public/` (packs included), bakes the level pack into a fourth
-scrambled pack, `packs/levels.pak`, so the original levels are no more readable
-in the demo than the art,
-and marks `index.html` as static, so the client reads its levels from that file
-and keeps the BEST RUNS board in the browser rather than posting to
-`/api/scores`. Every URL in it is relative, so it works from a sub-folder.
-Commit the folder to the Pages repository and it is live; `.nojekyll` is
-included so Pages serves the files as they are.
-
-The demo is the one place the original game's material is published, so the
-build needs a working copy that has it: `levels/pack.js` and the packs. It
-refuses to run without the original levels (`--remix` builds a demo of the
-remix set instead) and warns about any missing pack. It only ever empties an
-output folder that is empty or holds a previous build.
+The levels, graphics, sounds and music end up in `public/packs/` as scrambled
+packs (see [Asset packs](#asset-packs)). The game plays the original levels
+when `levels.pak` is there and the remix levels (`remix.pak`, the one pack
+that is committed) when it is not, and falls back to its procedural sprites,
+synthesised sounds and silence for any other pack that is missing, so every
+step is optional.
 
 ## Controls
 
@@ -203,11 +188,11 @@ those tiles, taken from OpenSupaplex's reverse engineering of the original.
 
 With the original files in place, the pack is the **original Supaplex level
 set, all 111 boards**, imported tile for tile from `levels/LEVELS.DAT` by
-`npm run import`. (Without them it is the remix pack, below.) WARM UP is level 1 and
+`node tools/import-original.mjs`. (Without them it is the remix pack, below.) WARM UP is level 1 and
 BRAINMAN! is level 111, in their original order, under their original titles and
 infotron quotas.
 
-The import is checked rather than trusted. `npm run compare` decodes the same
+The import is checked rather than trusted. `node tools/compare-original.mjs` decodes the same
 LEVELS.DAT and measures both sides with the same code, so every row reading
 `exact` says the board being served is the board that shipped in 1991:
 
@@ -220,7 +205,7 @@ LEVELS.DAT and measures both sides with the same code, so every row reading
 | infotrons | 4.54% | 4.54% | | capacitor clustering | 0.82 | 0.82 |
 | open space | 12.66% | 12.66% | | left-right symmetry | 0.52 | 0.52 |
 
-`npm run validate` passes on all 111: no sealed region, no quota that the board
+`node tools/validate-levels.mjs` passes on all 111: no sealed region, no quota that the board
 cannot yield, no force field buried under something. What it does **not** do is
 prove they can be finished -- nothing here has played all 111, and the automatic
 player finishes four of them unaided. That is a statement about a greedy bot,
@@ -239,7 +224,7 @@ Its chips are mostly two-cell DIP packages, which is why the vocabulary has
 `levels/pack.js` is generated and the next import overwrites it, so a level is
 never edited there. `levels/upgrades.mjs` is the seam: it maps a level number to
 a function that rewrites the board on the way through, using helpers that take
-the same coordinates `npm run peek` prints. It is currently empty, and the pack
+the same coordinates `node tools/peek.mjs` prints. It is currently empty, and the pack
 is the original designs untouched.
 
 Ten of them were rebuilt once -- each keeping its 1991 layout and gaining one
@@ -260,18 +245,17 @@ own doorstep behind a chip -- a vault once landed across the one way into the
 right-hand half of level 10 and took the drive bay with it, and nothing noticed,
 because the board still looked like a board.
 
-`npm run test:upgrades` plays whatever an edit adds, rather than reading it, and
-`npm run validate` re-checks the finished board. Both are quiet while nothing is
+`node tools/test-upgrades.mjs` plays whatever an edit adds, rather than reading it, and
+`node tools/validate-levels.mjs` re-checks the finished board. Both are quiet while nothing is
 changed.
 
 ### The remix pack
 
 Twenty levels of our own live in `levels/remix.js`, built by `tools/levelgen`
 from a dig-field with gates stamped into it. They are what a fresh clone
-serves, and with the originals in place they are still kept green: every tool takes `SUPREMIX_PACK`, so `SUPREMIX_PACK=remix npm run
-check` holds them to the stricter rules the originals are excused from -- every
+serves, and with the originals in place they are still kept green: every tool takes `SUPREMIX_PACK`, so `SUPREMIX_PACK=remix node tools/check.mjs` holds them to the stricter rules the originals are excused from -- every
 level past the tutorials gated, and a recorded solution that replays from spawn
-to exit. `npm run levels` rebuilds and re-verifies them.
+to exit. `sh tools/levelgen/rebuild.sh` rebuilds and re-verifies them.
 
 ### The sealed chamber
 
@@ -285,10 +269,9 @@ cannot be walked past.
 ## Layout
 
 ```
-server.js              zero-dependency static server + level and score APIs
 levels/
-  LEVELS.DAT           the original game's level data -- see Licence
-  pack.js              the 111 original levels, as ASCII art (generated)
+  LEVELS.DAT           the original game's level data (yours; git-ignored)
+  pack.js              the 111 original levels, as ASCII art (generated; git-ignored)
   upgrades.mjs         changes made to those designs; the only place to edit one
   remix.js             20 levels of our own (generated)
   remix-solutions.mjs  a worked solution for each of them (generated)
@@ -303,8 +286,9 @@ public/
   tiles.html           every sprite, drawn large -- open /tiles.html while running
   js/audio.js          sound effects and music (WebAudio)
   js/asset-pack.js     reads (and writes) the scrambled asset packs
-  packs/               gfx.pak, sfx.pak, music.pak -- the remastered atlas,
-                       the sound effects and the music, scrambled
+  packs/               the scrambled packs: remix.pak (our levels, committed);
+                       levels.pak, gfx.pak, sfx.pak, music.pak (the original
+                       levels, graphics, sounds and music; built, git-ignored)
   js/input.js          keyboard, with tap buffering
   js/touch.js          on-screen thumbstick and hold buttons
   js/gamepad.js        game controllers (Gamepad API)
@@ -312,9 +296,9 @@ public/
 tools/
   test-engine.mjs      59 engine rule tests
   test-client.mjs      builds every sprite and runs the renderer, headlessly
-  test-server.mjs      111 HTTP, score, traversal and shell-markup tests
-  pack-assets.mjs      builds the scrambled asset packs from assets/
-  build-demo.mjs       builds the static online demo (GitHub Pages)
+  check.mjs            runs the suites: `test` for the two above, or everything
+  pack-assets.mjs      builds the scrambled packs in public/packs/
+  build-site.mjs       copies public/ to a folder for any static webserver
   validate-levels.mjs  structural + physics validation of the level pack
   verify-solutions.mjs replays every level's recorded solution
   router.mjs           the automatic player those replays walk with
@@ -330,7 +314,6 @@ tools/
   fit-quota.mjs        measures each level's two ceilings and fits its quota
   dbg.mjs              replays one solution move by move and says where it broke
   levelgen/            builds the remix pack and its solutions; see its README
-data/scores.json       score board (created on first win)
 LICENSE                MIT, for SupRemix's own work
 NOTICE.md              credits, and what the licence does not cover
 ```
@@ -402,12 +385,12 @@ Rebuilding them needs the original game's folder, and Chrome or Edge to
 rasterise the SVG masters:
 
 ```bash
-npm run sprites -- <Supaplex folder>   # decode the DOS graphics -> assets/original/
-npm run remaster                       # HD tiles -> assets/remaster/fixed*
-npm run remaster:moving                # HD animation sheet -> assets/remaster/moving*
-npm run remaster:game                  # the game's atlas -> assets/game/, packed into gfx.pak
-npm run sounds -- <Supaplex folder>    # extract the samples -> assets/original/sounds*
-npm run sounds:remaster                # remaster them (from assets/original/sounds/) -> assets/sfx/, packed into sfx.pak
+node tools/extract-sprites.mjs <Supaplex folder>   # decode the DOS graphics -> assets/original/
+node tools/remaster/render.mjs                       # HD tiles -> assets/remaster/fixed*
+node tools/remaster/render-moving.mjs                # HD animation sheet -> assets/remaster/moving*
+node tools/remaster/game-atlas.mjs                  # the game's atlas -> assets/game/, packed into gfx.pak
+node tools/extract-sounds.mjs <Supaplex folder>    # extract the samples -> assets/original/sounds*
+node tools/remaster-sounds.mjs                # remaster them (from assets/original/sounds/) -> assets/sfx/, packed into sfx.pak
 ```
 
 ### Music
@@ -433,14 +416,15 @@ decodes to roughly 120 MB of samples in the browser.
 The tools that make these files need Python, the original `ROLAND.SND` and
 MT-32 ROMs, so they live outside this repository with the rest of the audio
 extraction (`extract_roland.py`, `make_game_music.py`). Their MP3s go in
-`assets/music/`; `npm run pack` then rebuilds `music.pak`.
+`assets/music/`; `node tools/pack-assets.mjs` then rebuilds `music.pak`.
 
 ### Asset packs
 
-The graphics, sounds and music are the original game's (see the licence below),
-so the server never hands them out as loose PNGs, WAVs and MP3s that anyone can
-browse to, preview and right-click-save. They ship in three packs in
-`public/packs/` -- `gfx.pak`, `sfx.pak`, `music.pak` -- each a small index and
+The levels, graphics, sounds and music are the original game's (see the licence
+below), so a webserver never hands them out as readable level data or loose
+PNGs, WAVs and MP3s that anyone can browse to, preview and right-click-save.
+They go in packs in `public/packs/` -- `levels.pak`, `gfx.pak`, `sfx.pak`,
+`music.pak`, and `remix.pak` for SupRemix's own levels -- each a small index and
 the files back to back, every byte XORed with a keystream seeded per file, with
 CRC-32s so a damaged pack is refused rather than fed to a decoder.
 `public/js/asset-pack.js` reads them in the browser and hands the game
@@ -452,7 +436,7 @@ looks. The point is only that lifting the art takes deliberate effort.
 The raw files the build tools write live under `assets/` (never served) and are
 git-ignored, like the original-game files they come from; only the packs are
 meant to be committed. The remaster tools repack their own group when they
-finish, and `npm run pack` (or `npm run pack -- sfx`) rebuilds by hand. Packing is
+finish, and `node tools/pack-assets.mjs` (or `node tools/pack-assets.mjs sfx`) rebuilds by hand. Packing is
 deterministic, so an unchanged rebuild leaves the packs byte-identical, and
 `test-client.mjs` fails if a pack has fallen behind its raw files or anything
 loose has crept back into `public/`.
@@ -501,33 +485,25 @@ counts after ten long frames in a row, restoring them when the machine catches
 up -- an effects layer that turns a weak machine into a slideshow is not worth
 having, and nobody reads a settings screen.
 
-## API
-
-| Endpoint | Purpose |
-| --- | --- |
-| `GET /api/levels` | the level pack; the client parses it with `tiles.js` |
-| `GET /api/scores` | every board, or `?level=N` for one |
-| `POST /api/scores` | `{ level, name, steps, ms }`, ranked by fewest moves |
-| `GET /api/health` | liveness |
-
 ## Development
 
+The tools are plain Node scripts (Node 18 or later), run from the repository root:
+
 ```bash
-npm test           # engine rule tests + server tests
-npm run test:client # sprites and renderer, on a stub canvas
-npm run test:server # HTTP layer only
-npm run test:upgrades # play the machinery levels/upgrades.mjs added
-npm run validate   # level pack checks
-npm run solve      # replay every level's recorded solution
-npm run audit      # is each level actually a puzzle?
-npm run peek 7     # print where everything in a level is
-npm run compare    # composition, both sides measured from LEVELS.DAT
-npm run import     # rebuild levels/pack.js from LEVELS.DAT + upgrades.mjs
-npm run inspect 7 --trace   # replay one solution move by move
-npm run levels     # rebuild the remix pack and its solutions
-npm run pack       # rebuild the asset packs from assets/
-npm run build:demo # the static demo for GitHub Pages -> dist/
-npm run check      # all of the above
+node tools/check.mjs test             # engine rule tests + client tests
+node tools/test-client.mjs            # sprites, renderer and packs, on a stub canvas
+node tools/test-upgrades.mjs          # play the machinery levels/upgrades.mjs added
+node tools/validate-levels.mjs        # level pack checks
+node tools/verify-solutions.mjs       # replay every level's recorded solution
+node tools/design-audit.mjs           # is each level actually a puzzle?
+node tools/peek.mjs 7                 # print where everything in a level is
+node tools/compare-original.mjs       # composition, both sides measured from LEVELS.DAT
+node tools/import-original.mjs        # rebuild levels/pack.js from LEVELS.DAT + upgrades.mjs
+node tools/dbg.mjs 7 --trace          # replay one solution move by move
+sh tools/levelgen/rebuild.sh          # rebuild the remix pack and its solutions
+node tools/pack-assets.mjs            # rebuild the packs in public/packs/
+node tools/build-site.mjs --out <dir> # a clean copy of the site for a webserver
+node tools/check.mjs                  # all of the above checks
 ```
 
 The remastered graphics and sounds are rebuilt from the original game with the
@@ -535,16 +511,16 @@ commands under [The remastered set](#the-remastered-set).
 
 Every tool reads `SUPREMIX_PACK`, which picks `levels/<name>.js` and its
 solutions beside it. It defaults to the original set when `levels/pack.js` is
-there and to the remix set when it is not; `SUPREMIX_PACK=remix npm run check`
+there and to the remix set when it is not; `SUPREMIX_PACK=remix node tools/check.mjs`
 runs the whole suite against our own twenty either way.
 
-`npm test` covers both halves. The engine tests build tiny hand-made grids and
-drive them with scripted input, so a rule change that breaks pushing or bug
-timing fails immediately. The server tests start the real server on an ephemeral
-port against a scratch data directory and exercise the score validation, the
-path-traversal guard, ETag revalidation, that every id main.js looks up actually
-exists in index.html, and the score writer's behaviour under
-a burst of concurrent saves.
+`node tools/check.mjs test` runs both suites. The engine tests build tiny
+hand-made grids and drive them with scripted input, so a rule change that breaks
+pushing or bug timing fails immediately. The client tests build every sprite at
+several sizes, run the renderer over real levels against a canvas that draws
+nothing, and check the packs: that each reads back exactly, that each is
+current with what it is built from, and that nothing of the original game is
+readable in a copy of the site.
 
 `validate` confirms each level parses, that the exit and enough infotrons are
 reachable, and — by running the level headless for 400 steps with no input —
@@ -567,7 +543,7 @@ cleanly can still be impossible to finish; this is the test that catches it.
 The 111 originals have no recorded solutions and are skipped: nobody here has
 played all 111, and a level a greedy bot cannot finish is not evidence of a
 broken level. They are held to `validate` instead. The remix pack is where
-`solve` earns its keep -- `SUPREMIX_PACK=remix npm run solve` replays all
+`solve` earns its keep -- `SUPREMIX_PACK=remix node tools/verify-solutions.mjs` replays all
 twenty.
 
 `audit` asks the opposite question. It turns the same player loose with no plan
@@ -642,9 +618,9 @@ chip, and anything else pads with empty space. So rows only need to be drawn as 
 a short wall row can never leave an accidental shaft at the edge.
 
 A remix level's solution is not written at all -- the gates it uses supply that,
-recording the moves that open them as they are stamped. `npm run levels`
+recording the moves that open them as they are stamped. `sh tools/levelgen/rebuild.sh`
 rebuilds the pack and its solutions and sets each quota by measurement;
-`SUPREMIX_PACK=remix npm run check` then has to be green.
+`SUPREMIX_PACK=remix node tools/check.mjs` then has to be green.
 
 ## Licence
 
@@ -660,9 +636,7 @@ Digital Integration in 1991. Its levels (`LEVELS.DAT`), its graphics
 (`FIXED.DAT`, `MOVING.DAT`), its sounds (`BLASTER.SND`) and its music
 (`ROLAND.SND`), and everything this project's tools make from them -- the
 imported `levels/pack.js`, the remastered graphics, sounds and music in
-`assets/` and `public/packs/` -- remain their owners' and are git-ignored. The
-online demo includes them so it plays as the original did; rights holders who
-would like them taken down can open an issue.
+`assets/` and `public/packs/` -- remain their owners' and are git-ignored.
 
 OpenSupaplex (Sergio Padrino) was the reference for the original's frame
 positions and its rules and timing. [NOTICE.md](NOTICE.md) has the full

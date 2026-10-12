@@ -12,12 +12,12 @@ SPDX-License-Identifier: MIT
 
 The MIT License covers this project's own work:
 
-- all source code: `server.js`, everything in `public/` other than the asset
-  packs, everything in `tools/` other than `tools/remaster/frames.mjs` (below),
-  and `levels/upgrades.mjs`
+- all source code: everything in `public/` other than the asset packs,
+  everything in `tools/` other than `tools/remaster/frames.mjs` (below), and
+  `levels/upgrades.mjs`
 - the twenty remix levels and their solutions (`levels/remix.js`,
-  `levels/remix-solutions.mjs`) and the generator that builds them
-  (`tools/levelgen/`)
+  `levels/remix-solutions.mjs`, packed as `public/packs/remix.pak`) and the
+  generator that builds them (`tools/levelgen/`)
 - the procedural sprites and synthesised sound effects the game draws and plays
   in code (`public/js/sprites.js`, `public/js/audio.js`)
 - the documentation
@@ -59,7 +59,7 @@ owners:
 
 | What | Where it goes in a working copy | Made from |
 |------|------------|-----------|
-| The 111 original levels | `levels/LEVELS.DAT`, and `levels/pack.js` imported from it | the game's `LEVELS.DAT` |
+| The 111 original levels | `levels/LEVELS.DAT`, `levels/pack.js` imported from it, and `public/packs/levels.pak` | the game's `LEVELS.DAT` |
 | The remastered graphics | `public/packs/gfx.pak` (and `assets/`) | redrawn from the game's `FIXED.DAT` and `MOVING.DAT` |
 | The sound effects | `public/packs/sfx.pak` (and `assets/sfx/`) | remastered from the game's Sound Blaster samples, `BLASTER.SND` |
 | The music | `public/packs/music.pak` (and `assets/music/`) | the game's own score, rendered from its Roland MT-32 driver, `ROLAND.SND` |
@@ -67,11 +67,6 @@ owners:
 These are listed in `.gitignore`. The tools in `tools/` build them from a copy
 of the original game you supply; see the README. Without them, SupRemix plays
 its own twenty remix levels with its procedural graphics and synthesised sound.
-
-The online demo includes this material so that it can be played as the
-original was. If you hold rights in Supaplex and would like any of it removed
-from the demo, please open an issue on this repository and it will be taken
-down.
 
 ## Used to make the assets, not included
 

@@ -12,6 +12,7 @@
 
 import { writeFileSync, existsSync } from 'node:fs';
 import { readOriginal } from './original.mjs';
+import { packGroup } from './pack-assets.mjs';
 
 const OUT = 'levels/pack.js';
 
@@ -96,4 +97,5 @@ const header = `/*
 
 writeFileSync(OUT, `${header}const LEVELS = [\n${body}\n];\n\nmodule.exports = { LEVELS };\n`);
 console.log(`${levels.length} original levels written to ${OUT}`);
+packGroup('levels');
 if (changed.length) console.log(`upgraded: ${changed.join(', ')}`);
